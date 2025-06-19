@@ -1,0 +1,295 @@
+---
+title: プロンプト例一覧
+description: プロジェクトで使用されている主なプロンプトとその役割をまとめた一覧です。
+---
+
+# 概要
+
+本プロジェクトでは、GitHub Issue の解決や評価スクリプトなどで多数のプロンプトを使用しています。ここではファイルごとにどのような目的で使われているかを簡単に解説します。
+
+## Resolver 関連のプロンプト
+
+- **resolve/basic.jinja** – Issue 解決を開始するための基本プロンプト。
+- **resolve/basic-conversation-instructions.jinja** – 対話中の禁止事項やリポジトリ情報を伝えるインストラクション。
+- **resolve/basic-followup.jinja** – PR レビューのコメントを受けて修正を促す際のプロンプト。
+- **resolve/basic-followup-conversation-instructions.jinja** – フォローアップ時の会話インストラクション。
+- **resolve/basic-with-tests.jinja** – テスト追加も求められる場合の基本プロンプト。
+- **resolve/basic-with-tests-conversation-instructions.jinja** – テスト必須の指示を含む会話インストラクション。
+- **resolve/pr-changes-summary.jinja** – PR の変更点を要約するためのプロンプト。
+
+## 成功判定用プロンプト
+
+- **guess_success/issue-success-check.jinja** – Issue が解決されたかを確認するための質問テンプレート。
+- **guess_success/pr-feedback-check.jinja** – フィードバックが反映されたかを確認するための質問テンプレート。
+- **guess_success/pr-review-check.jinja** – PR レビューコメントの反映状況を確認するテンプレート。
+- **guess_success/pr-thread-check.jinja** – PR スレッドのコメントが解消されたかを判断するテンプレート。
+
+## リポジトリ個別の説明
+
+`repo_instructions` ディレクトリ内には各リポジトリ向けの簡単なセットアップ手順やテスト方法を記載したテキストがあり、プロンプト内で挿入されます。
+
+## Microagent
+
+- **microagent/prompts/generate_remember_prompt.j2** – 新しいイベントを元に参照用ファイルを更新するプロンプトを生成するテンプレート。
+
+## CLI
+
+- **cli/commands.py の REPO_MD_CREATE_PROMPT** – リポジトリの概要を `.openhands/microagents/repo.md` に作成させるための指示。
+
+## LLM
+
+- **llm/fn_call_converter.py の SYSTEM_PROMPT_SUFFIX_TEMPLATE** – 関数呼び出し非対応モデルへ指示を付与するためのシステムプロンプト。ツール利用例 (`TOOL_EXAMPLES`) も同ファイルに含まれます。
+
+## 評価用プロンプト
+
+- **discoverybench/eval_utils/openai_semantic_gen_prompts.py** – データセット生成のための `PROMPT_HYP` `PROMPT_COL` `PROMPT_DER` を定義。
+- **testgeneval/prompt.py** – テスト自動生成に用いる `CODEACT_TESTGEN_PROMPT` などのテンプレート。
+- **mint/prompts/template_with_tool.txt** – Jupyter 環境での問題解決手順を示すテンプレート。
+- **EDA/game.py** – 20 質ゲーム用の `vicuna_prompt` と最初の発話内容を定義。
+- **scienceagentbench/run_infer.py** – 科学タスクを解くための長めのインストラクションを埋め込む。
+- **toolqa/utils.py** – ツールを使って答えを導くための `REACT_INSTRUCTION` を定義。
+- **ml_bench/run_analysis.py** – 失敗ケースを分類するための簡易プロンプトを使用。
+- **humanevalfix/README.md** – 人間評価用の例として Issue 修正指示の全文が掲載されています。
+
+これらのファイルを参考にすると、OpenHands の各機能がどのようなプロンプトで動作しているかを把握できます。
+
+## 主なプロンプト内容と日本語訳
+
+以下では上で挙げたファイルに実際に記載されている英語のプロンプトを抜粋し、日本語訳とともに解説します。
+
+### resolve/basic.jinja
+```text
+Please fix the following issue for the repository in /workspace.
+An environment has been set up for you to start working. You may assume all necessary tools are installed.
+
+# Problem Statement
+{{ body }}
+```
+**日本語訳**
+```text
+/workspace にあるリポジトリの次の Issue を修正してください。
+作業に必要なツールはすべてインストール済みです。
+
+# 問題点
+{{ body }}
+```
+このテンプレートは Issue 本文を差し込み、修正作業を開始させる基本プロンプトです。
+
+### resolve/basic-conversation-instructions.jinja
+```text
+IMPORTANT: You should ONLY interact with the environment provided to you AND NEVER ASK FOR HUMAN HELP.
+You SHOULD INCLUDE PROPER INDENTATION in your edit commands.{% if repo_instruction %}
+
+Some basic information about this repository:
+{{ repo_instruction }}{% endif %}
+
+When you think you have fixed the issue through code changes, please finish the interaction.
+```
+**日本語訳**
+```text
+重要: 与えられた環境のみを使用し、人に助けを求めてはいけません。
+編集コマンドでは適切なインデントを必ず含めてください。{% if repo_instruction %}
+
+このリポジトリの基本情報:
+{{ repo_instruction }}{% endif %}
+
+修正が完了したと思ったら finish アクションを実行してください。
+```
+作業中に守るべきルールやリポジトリ情報を伝えるインストラクションです。
+
+### resolve/basic-followup.jinja
+```text
+Please fix the code based on the following feedback
+
+# Review comments
+{{ review_comments }}
+
+# Review threads
+{{ review_threads }}
+
+# Review thread files
+{{ files }}
+
+# PR Thread Comments
+{{ thread_context }}
+```
+**日本語訳**
+```text
+以下のフィードバックに基づいてコードを修正してください。
+
+# レビューコメント
+{{ review_comments }}
+
+# レビュースレッド
+{{ review_threads }}
+
+# レビュースレッドのファイル一覧
+{{ files }}
+
+# PR スレッドのコメント
+{{ thread_context }}
+```
+PR レビューで指摘された内容を受け、修正を促すためのプロンプトです。
+
+### resolve/basic-followup-conversation-instructions.jinja
+```text
+The current code is an attempt at fixing one or more issues. The code is not satisfactory and follow up feedback have been provided to address this.
+The feedback may be addressed to specific code files. In this case the file locations will be provided.
+Please update the code based on the feedback for the repository in /workspace.
+An environment has been set up for you to start working. You may assume all necessary tools are installed.
+
+# Issues addressed
+{{ issues }}
+
+IMPORTANT: You should ONLY interact with the environment provided to you AND NEVER ASK FOR HUMAN HELP.
+You SHOULD INCLUDE PROPER INDENTATION in your edit commands.{% if repo_instruction %}
+
+Some basic information about this repository:
+{{ repo_instruction }}{% endif %}
+
+When you think you have fixed the issue through code changes, please finish the interaction.
+```
+**日本語訳**
+```text
+現在のコードは問題修正の途中段階で、追加のフィードバックが与えられています。フィードバックが特定のファイルに向けられている場合はその場所も示されます。/workspace のリポジトリを更新してください。環境は準備済みでツールもインストールされています。
+
+# 対応する Issue
+{{ issues }}
+
+重要: 与えられた環境のみを使用し、人に助けを求めてはいけません。編集コマンドでは適切なインデントを必ず含めてください。{% if repo_instruction %}
+
+このリポジトリの基本情報:
+{{ repo_instruction }}{% endif %}
+
+修正が完了したと思ったら finish アクションを実行してください。
+```
+フォローアップ時に用いられる指示文で、前回の修正に対する追加対応を促します。
+
+### resolve/basic-with-tests.jinja
+```text
+Please fix the following issue for the repository in /workspace.
+An environment has been set up for you to start working. You may assume all necessary tools are installed.
+
+# Problem Statement
+{{ body }}
+```
+**日本語訳**
+```text
+/workspace にあるリポジトリの次の Issue を修正してください。
+作業に必要なツールはすべてインストール済みです。
+
+# 問題点
+{{ body }}
+```
+テスト追加も求められる場合に使用される基本テンプレートです。
+
+### resolve/basic-with-tests-conversation-instructions.jinja
+```text
+IMPORTANT: You should ONLY interact with the environment provided to you AND NEVER ASK FOR HUMAN HELP.
+You SHOULD INCLUDE PROPER INDENTATION in your edit commands.{% if repo_instruction %}
+
+Some basic information about this repository:
+{{ repo_instruction }}{% endif %}
+
+For all changes to actual application code (e.g. in Python or Javascript), add an appropriate test to the testing directory to make sure that the issue has been fixed.
+Run the tests, and if they pass you are done!
+You do NOT need to write new tests if there are only changes to documentation or configuration files.
+
+When you think you have fixed the issue through code changes, please call the finish action to end the interaction.
+```
+**日本語訳**
+```text
+重要: 与えられた環境のみを使用し、人に助けを求めてはいけません。
+編集コマンドでは適切なインデントを必ず含めてください。{% if repo_instruction %}
+
+このリポジトリの基本情報:
+{{ repo_instruction }}{% endif %}
+
+Python や JavaScript などアプリケーションコードを変更する場合は、必ず tests ディレクトリに適切なテストを追加してください。テストが通れば完了です。ドキュメントや設定ファイルのみの変更であれば新しいテストは不要です。
+
+修正が完了したと思ったら finish アクションを実行してください。
+```
+テスト追加を指示する点以外は基本の会話指示と同様です。
+
+### resolve/pr-changes-summary.jinja
+```text
+Please create a concise overview of the following changes, commenting on whether all issues have been successfully resolved or if there are still issues remaining:
+
+{{ comment_message }}
+```
+**日本語訳**
+```text
+以下の変更内容を要約し、すべての Issue が解決されたか、まだ残っているかをコメントしてください。
+
+{{ comment_message }}
+```
+PR の変更点をまとめ、未解決事項がないか確認するためのプロンプトです。
+
+### guess_success/issue-success-check.jinja
+(抜粋)
+```text
+Given the following issue description and the last message from an AI agent attempting to fix it, determine if the issue has been successfully resolved based on the changes made and their expected impact...
+```
+**日本語訳**
+```text
+以下の Issue 説明と AI エージェントの最終メッセージを基に、行われた変更とその効果から Issue が解決されたか判断してください…
+```
+修正結果を自動判定するための質問テンプレートです。以下のファイルも同様の形式でフィードバックやレビュー、スレッド解消の可否を尋ねます。
+
+### microagent/prompts/generate_remember_prompt.j2
+```text
+You are tasked with generating a prompt that will be used by another AI to update a special reference file. This file contains important information and learnings that are used to carry out certain tasks...
+```
+**日本語訳**
+```text
+別の AI が参照ファイルを更新するためのプロンプトを生成してください。このファイルには重要な情報や知見が蓄積されています…
+```
+新しいイベントからどのように参照ファイルを更新するかを指示するためのテンプレートです。
+
+### cli/commands.py の REPO_MD_CREATE_PROMPT
+```text
+Please explore this repository. Create the file .openhands/microagents/repo.md with:
+    - A description of the project
+    - An overview of the file structure
+    - Any information on how to run tests or other relevant commands
+    - Any other information that would be helpful to a brand new developer
+Keep it short--just a few paragraphs will do.
+```
+**日本語訳**
+```text
+このリポジトリを調査し、.openhands/microagents/repo.md を作成してください。
+- プロジェクトの概要
+- ファイル構成の簡単な説明
+- テスト実行方法などのコマンド
+- 新しい開発者が参考にできるその他の情報
+数段落程度の簡潔な内容にしてください。
+```
+リポジトリの概要ファイルを生成する際に使用されます。
+
+### llm/fn_call_converter.py の SYSTEM_PROMPT_SUFFIX_TEMPLATE
+(抜粋)
+```text
+You have access to the following functions:
+
+{description}
+
+If you choose to call a function ONLY reply in the following format with NO suffix:
+<function=example_function_name>
+<parameter=example_parameter_1>value_1</parameter>
+...
+```
+**日本語訳**
+```text
+以下の関数を利用できます。
+
+{description}
+
+関数を呼び出す場合は次の形式のみで返信してください。末尾に余計なテキストを付けてはいけません。
+<function=example_function_name>
+<parameter=example_parameter_1>value_1</parameter>
+...
+```
+関数呼び出しをサポートしないモデルへフォーマットを明示するためのシステムプロンプトです。
+
+### その他の評価用プロンプト
+データセット生成 (`PROMPT_HYP` など) や自動テスト生成 (`CODEACT_TESTGEN_PROMPT`) にも長文のテンプレートが定義されています。Jupyter 問題解決用テンプレートや 20 質ゲームの初期発話、科学タスクの詳細指示、ツール利用時の `REACT_INSTRUCTION` など、用途ごとにプロンプトが用意されています。
