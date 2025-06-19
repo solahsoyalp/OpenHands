@@ -121,7 +121,8 @@
           {
             "group": "Tips and Tricks",
             "pages": [
-              "usage/prompting/prompting-best-practices"
+              "usage/prompting/prompting-best-practices",
+              "usage/prompting/project-prompts"
             ]
           },
           {
