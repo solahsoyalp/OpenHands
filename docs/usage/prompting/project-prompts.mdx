@@ -1,0 +1,54 @@
+---
+title: プロンプト例一覧
+description: プロジェクトで使用されている主なプロンプトとその役割をまとめた一覧です。
+---
+
+# 概要
+
+本プロジェクトでは、GitHub Issue の解決や評価スクリプトなどで多数のプロンプトを使用しています。ここではファイルごとにどのような目的で使われているかを簡単に解説します。
+
+## Resolver 関連のプロンプト
+
+- **resolve/basic.jinja** – Issue 解決を開始するための基本プロンプト。
+- **resolve/basic-conversation-instructions.jinja** – 対話中の禁止事項やリポジトリ情報を伝えるインストラクション。
+- **resolve/basic-followup.jinja** – PR レビューのコメントを受けて修正を促す際のプロンプト。
+- **resolve/basic-followup-conversation-instructions.jinja** – フォローアップ時の会話インストラクション。
+- **resolve/basic-with-tests.jinja** – テスト追加も求められる場合の基本プロンプト。
+- **resolve/basic-with-tests-conversation-instructions.jinja** – テスト必須の指示を含む会話インストラクション。
+- **resolve/pr-changes-summary.jinja** – PR の変更点を要約するためのプロンプト。
+
+## 成功判定用プロンプト
+
+- **guess_success/issue-success-check.jinja** – Issue が解決されたかを確認するための質問テンプレート。
+- **guess_success/pr-feedback-check.jinja** – フィードバックが反映されたかを確認するための質問テンプレート。
+- **guess_success/pr-review-check.jinja** – PR レビューコメントの反映状況を確認するテンプレート。
+- **guess_success/pr-thread-check.jinja** – PR スレッドのコメントが解消されたかを判断するテンプレート。
+
+## リポジトリ個別の説明
+
+`repo_instructions` ディレクトリ内には各リポジトリ向けの簡単なセットアップ手順やテスト方法を記載したテキストがあり、プロンプト内で挿入されます。
+
+## Microagent
+
+- **microagent/prompts/generate_remember_prompt.j2** – 新しいイベントを元に参照用ファイルを更新するプロンプトを生成するテンプレート。
+
+## CLI
+
+- **cli/commands.py の REPO_MD_CREATE_PROMPT** – リポジトリの概要を `.openhands/microagents/repo.md` に作成させるための指示。
+
+## LLM
+
+- **llm/fn_call_converter.py の SYSTEM_PROMPT_SUFFIX_TEMPLATE** – 関数呼び出し非対応モデルへ指示を付与するためのシステムプロンプト。ツール利用例 (`TOOL_EXAMPLES`) も同ファイルに含まれます。
+
+## 評価用プロンプト
+
+- **discoverybench/eval_utils/openai_semantic_gen_prompts.py** – データセット生成のための `PROMPT_HYP` `PROMPT_COL` `PROMPT_DER` を定義。
+- **testgeneval/prompt.py** – テスト自動生成に用いる `CODEACT_TESTGEN_PROMPT` などのテンプレート。
+- **mint/prompts/template_with_tool.txt** – Jupyter 環境での問題解決手順を示すテンプレート。
+- **EDA/game.py** – 20 質ゲーム用の `vicuna_prompt` と最初の発話内容を定義。
+- **scienceagentbench/run_infer.py** – 科学タスクを解くための長めのインストラクションを埋め込む。
+- **toolqa/utils.py** – ツールを使って答えを導くための `REACT_INSTRUCTION` を定義。
+- **ml_bench/run_analysis.py** – 失敗ケースを分類するための簡易プロンプトを使用。
+- **humanevalfix/README.md** – 人間評価用の例として Issue 修正指示の全文が掲載されています。
+
+これらのファイルを参考にすると、OpenHands の各機能がどのようなプロンプトで動作しているかを把握できます。
