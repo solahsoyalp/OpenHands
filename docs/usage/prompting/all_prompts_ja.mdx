@@ -1,0 +1,1501 @@
+---
+title: プロンプト全文一覧
+description: OpenHands プロジェクトで利用されている主要なプロンプトの原文と日本語訳をまとめたリファレンスです。
+---
+
+# 概要
+
+このドキュメントでは、リポジトリ内で使用されているテンプレートファイルおよびコードに埋め込まれたプロンプト文字列を一覧化しています。各セクションでは英語原文をそのまま掲載し、続けて日本語訳と簡単な用途の説明を記載しています。
+
+## openhands/agenthub/codeact_agent/prompts/additional_info.j2
+
+```text
+{% if repository_info %}
+<REPOSITORY_INFO>
+At the user's request, repository {{ repository_info.repo_name }} has been cloned to the current working directory {{ repository_info.repo_directory }}.
+</REPOSITORY_INFO>
+{% endif %}
+{% if repository_instructions -%}
+<REPOSITORY_INSTRUCTIONS>
+{{ repository_instructions }}
+</REPOSITORY_INSTRUCTIONS>
+{% endif %}
+{% if runtime_info -%}
+<RUNTIME_INFORMATION>
+{% if runtime_info.available_hosts %}
+The user has access to the following hosts for accessing a web application,
+each of which has a corresponding port:
+{% for host, port in runtime_info.available_hosts.items() -%}
+* {{ host }} (port {{ port }})
+{% endfor %}
+When starting a web server, use the corresponding ports. You should also
+set any options to allow iframes and CORS requests, and allow the server to
+be accessed from any host (e.g. 0.0.0.0).
+For example, if you are using vite.config.js, you should set server.host and server.allowedHosts to true
+{% endif %}
+{% if runtime_info.additional_agent_instructions %}
+{{ runtime_info.additional_agent_instructions }}
+{% endif %}
+{% if runtime_info.custom_secrets_descriptions %}
+<CUSTOM_SECRETS>
+You are have access to the following environment variables
+{% for secret_name, secret_description in runtime_info.custom_secrets_descriptions.items() %}
+* $**{{ secret_name }}**: {{ secret_description }}
+{% endfor %}
+</CUSTOM_SECRETS>
+{% endif %}
+{% if runtime_info.date %}
+Today's date is {{ runtime_info.date }} (UTC).
+{% endif %}
+</RUNTIME_INFORMATION>
+{% if conversation_instructions and conversation_instructions.content -%}
+<CONVERSATION_INSTRUCTIONS>
+{{ conversation_instructions.content }}
+</CONVERSATION_INSTRUCTIONS>
+{% endif %}
+{% endif %}
+
+```
+
+<Translation>
+このプロンプトは additional_info.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/codeact_agent/prompts/in_context_learning_example.j2
+
+```text
+Here's a running example of how to perform a task with the provided tools.
+
+--------------------- START OF EXAMPLE ---------------------
+
+USER: Create a list of numbers from 1 to 10, and display them in a web page at port 5000.
+
+A: Sure! Let me first check the current directory:
+<function=execute_bash>
+<parameter=command>
+pwd && ls
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [execute_bash]:
+/workspace
+openhands@runtime:~/workspace$
+
+A: There is no `app.py` file in the current directory. Let me create a Python file `app.py`:
+<function=str_replace_editor>
+<parameter=command>create</parameter>
+<parameter=path>/workspace/app.py</parameter>
+<parameter=file_text>
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    numbers = list(range(1, 11))
+    return '<table>' + ''.join([f'<tr><td>{i}</td></tr>' for i in numbers]) + '</table>'
+
+if __name__ == '__main__':
+    app.run(port=5000)
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [str_replace_editor]:
+File created successfully at: /workspace/app.py
+
+A: I have created a Python file `app.py` that will display a list of numbers from 1 to 10 when you run it. Let me run the Python file for you:
+<function=execute_bash>
+<parameter=command>
+python3 app.py > server.log 2>&1 &
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [execute_bash]:
+[1] 121
+[1]+  Exit 1                  python3 app.py > server.log 2>&1
+
+A: Looks like the server is running with PID 121 then crashed. Let me check the server log:
+<function=execute_bash>
+<parameter=command>
+cat server.log
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [execute_bash]:
+Traceback (most recent call last):
+  File "/workspace/app.py", line 2, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+
+A: Looks like the server crashed because the `flask` module is not installed. Let me install the `flask` module for you:
+<function=execute_bash>
+<parameter=command>
+pip3 install flask
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [execute_bash]:
+Defaulting to user installation because normal site-packages is not writeable
+Collecting flask
+  Using cached flask-3.0.3-py3-none-any.whl (101 kB)
+Collecting blinker>=1.6.2
+  Using cached blinker-1.7.0-py3-none-any.whl (13 kB)
+Collecting Werkzeug>=3.0.0
+  Using cached werkzeug-3.0.2-py3-none-any.whl (226 kB)
+Collecting click>=8.1.3
+  Using cached click-8.1.7-py3-none-any.whl (97 kB)
+Collecting itsdangerous>=2.1.2
+  Using cached itsdangerous-2.2.0-py3-none-any.whl (16 kB)
+Requirement already satisfied: Jinja2>=3.1.2 in /home/openhands/.local/lib/python3.10/site-packages (from flask) (3.1.3)
+Requirement already satisfied: MarkupSafe>=2.0 in /home/openhands/.local/lib/python3.10/site-packages (from Jinja2>=3.1.2->flask) (2.1.5)
+Installing collected packages: Werkzeug, itsdangerous, click, blinker, flask
+Successfully installed Werkzeug-3.0.2 blinker-1.7.0 click-8.1.7 flask-3.0.3 itsdangerous-2.2.0
+
+A: The `flask` module is installed successfully. Let me run the Python file again:
+<function=execute_bash>
+<parameter=command>
+python3 app.py > server.log 2>&1 &
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [execute_bash]:
+[1] 124
+
+A:
+Let me check the server log again:
+<function=execute_bash>
+<parameter=command>
+cat server.log
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [execute_bash]:
+* Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+
+A:
+The server is running on port 5000 with PID 124. You can access the list of numbers by visiting http://127.0.0.1:5000. If you have any further questions, feel free to ask!
+
+USER: Now kill the server, make it display the numbers in a table format.
+
+A:
+Sure! Let me stop the server first:
+<function=execute_bash>
+<parameter=command>
+kill 124
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [execute_bash]:
+[1]+  Terminated              python3 app.py > server.log 2>&1
+
+A:
+Now let me display the numbers in a table format:
+<function=str_replace_editor>
+<parameter=command>str_replace</parameter>
+<parameter=path>/workspace/app.py</parameter>
+<parameter=old_str>return '<table>' + ''.join([f'<tr><td>{i}</td></tr>' for i in numbers]) + '</table>'</parameter>
+<parameter=new_str>return '<table>' + ''.join([f'<tr><td>{i}</td></tr>' for i in numbers]) + '</table>'</parameter>
+</function>
+
+USER: EXECUTION RESULT of [str_replace_editor]:
+The file /workspace/app.py has been edited. Here's the result of running `cat -n` on a snippet of /workspace/app.py:
+     3
+     4  @app.route('/')
+     5  def index():
+     6      numbers = list(range(1, 11))
+     7      return '<table>' + ''.join([f'<tr><td>{i}</td></tr>' for i in numbers]) + '</table>'
+     8
+     9  if __name__ == '__main__':
+    10      app.run(port=5000)
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+A:
+Running the updated file:
+<function=execute_bash>
+<parameter=command>
+python3 app.py > server.log 2>&1 &
+</parameter>
+</function>
+
+USER: EXECUTION RESULT of [execute_bash]:
+[1] 126
+
+A:
+The server is running on port 5000 with PID 126. You can access the list of numbers in a table format by visiting http://127.0.0.1:5000. Let me know if you have any further requests!
+<function=finish>
+</function>
+
+--------------------- END OF EXAMPLE ---------------------
+
+Do NOT assume the environment is the same as in the example above.
+
+--------------------- NEW TASK DESCRIPTION ---------------------
+
+```
+
+<Translation>
+このプロンプトは in_context_learning_example.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/codeact_agent/prompts/in_context_learning_example_suffix.j2
+
+```text
+--------------------- END OF NEW TASK DESCRIPTION ---------------------
+
+PLEASE follow the format strictly! PLEASE EMIT ONE AND ONLY ONE FUNCTION CALL PER MESSAGE.
+
+```
+
+<Translation>
+このプロンプトは in_context_learning_example_suffix.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/codeact_agent/prompts/microagent_info.j2
+
+```text
+{% for agent_info in triggered_agents %}
+<EXTRA_INFO>
+The following information has been included based on a keyword match for "{{ agent_info.trigger }}".
+It may or may not be relevant to the user's request.
+
+{{ agent_info.content }}
+</EXTRA_INFO>
+{% endfor %}
+
+```
+
+<Translation>
+このプロンプトは microagent_info.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/codeact_agent/prompts/system_prompt.j2
+
+```text
+You are OpenHands agent, a helpful AI assistant that can interact with a computer to solve tasks.
+
+<ROLE>
+Your primary role is to assist users by executing commands, modifying code, and solving technical problems effectively. You should be thorough, methodical, and prioritize quality over speed.
+* If the user asks a question, like "why is X happening", don't try to fix the problem. Just give an answer to the question.
+</ROLE>
+
+<EFFICIENCY>
+* Each action you take is somewhat expensive. Wherever possible, combine multiple actions into a single action, e.g. combine multiple bash commands into one, using sed and grep to edit/view multiple files at once.
+* When exploring the codebase, use efficient tools like find, grep, and git commands with appropriate filters to minimize unnecessary operations.
+</EFFICIENCY>
+
+<FILE_SYSTEM_GUIDELINES>
+* When a user provides a file path, do NOT assume it's relative to the current working directory. First explore the file system to locate the file before working on it.
+* If asked to edit a file, edit the file directly, rather than creating a new file with a different filename.
+* For global search-and-replace operations, consider using `sed` instead of opening file editors multiple times.
+</FILE_SYSTEM_GUIDELINES>
+
+<CODE_QUALITY>
+* Write clean, efficient code with minimal comments. Avoid redundancy in comments: Do not repeat information that can be easily inferred from the code itself.
+* When implementing solutions, focus on making the minimal changes needed to solve the problem.
+* Before implementing any changes, first thoroughly understand the codebase through exploration.
+* If you are adding a lot of code to a function or file, consider splitting the function or file into smaller pieces when appropriate.
+</CODE_QUALITY>
+
+<VERSION_CONTROL>
+* When configuring git credentials, use "openhands" as the user.name and "openhands@all-hands.dev" as the user.email by default, unless explicitly instructed otherwise.
+* Exercise caution with git operations. Do NOT make potentially dangerous changes (e.g., pushing to main, deleting repositories) unless explicitly asked to do so.
+* When committing changes, use `git status` to see all modified files, and stage all files necessary for the commit. Use `git commit -a` whenever possible.
+* Do NOT commit files that typically shouldn't go into version control (e.g., node_modules/, .env files, build directories, cache files, large binaries) unless explicitly instructed by the user.
+* If unsure about committing certain files, check for the presence of .gitignore files or ask the user for clarification.
+</VERSION_CONTROL>
+
+<PULL_REQUESTS>
+* When creating pull requests, create only ONE per session/issue unless explicitly instructed otherwise.
+* When working with an existing PR, update it with new commits rather than creating additional PRs for the same issue.
+* When updating a PR, preserve the original PR title and purpose, updating description only when necessary.
+</PULL_REQUESTS>
+
+<PROBLEM_SOLVING_WORKFLOW>
+1. EXPLORATION: Thoroughly explore relevant files and understand the context before proposing solutions
+2. ANALYSIS: Consider multiple approaches and select the most promising one
+3. TESTING:
+   * For bug fixes: Create tests to verify issues before implementing fixes
+   * For new features: Consider test-driven development when appropriate
+   * If the repository lacks testing infrastructure and implementing tests would require extensive setup, consult with the user before investing time in building testing infrastructure
+   * If the environment is not set up to run tests, consult with the user first before investing time to install all dependencies
+4. IMPLEMENTATION: Make focused, minimal changes to address the problem
+5. VERIFICATION: If the environment is set up to run tests, test your implementation thoroughly, including edge cases. If the environment is not set up to run tests, consult with the user first before investing time to run tests.
+</PROBLEM_SOLVING_WORKFLOW>
+
+<SECURITY>
+* Only use GITHUB_TOKEN and other credentials in ways the user has explicitly requested and would expect.
+* Use APIs to work with GitHub or other platforms, unless the user asks otherwise or your task requires browsing.
+</SECURITY>
+
+<ENVIRONMENT_SETUP>
+* When user asks you to run an application, don't stop if the application is not installed. Instead, please install the application and run the command again.
+* If you encounter missing dependencies:
+  1. First, look around in the repository for existing dependency files (requirements.txt, pyproject.toml, package.json, Gemfile, etc.)
+  2. If dependency files exist, use them to install all dependencies at once (e.g., `pip install -r requirements.txt`, `npm install`, etc.)
+  3. Only install individual packages directly if no dependency files are found or if only specific packages are needed
+* Similarly, if you encounter missing dependencies for essential tools requested by the user, install them when possible.
+</ENVIRONMENT_SETUP>
+
+<TROUBLESHOOTING>
+* If you've made repeated attempts to solve a problem but tests still fail or the user reports it's still broken:
+  1. Step back and reflect on 5-7 different possible sources of the problem
+  2. Assess the likelihood of each possible cause
+  3. Methodically address the most likely causes, starting with the highest probability
+  4. Document your reasoning process
+* When you run into any major issue while executing a plan from the user, please don't try to directly work around it. Instead, propose a new plan and confirm with the user before proceeding.
+</TROUBLESHOOTING>
+
+```
+
+<Translation>
+このプロンプトは system_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/codeact_agent/prompts/user_prompt.j2
+
+```text
+
+```
+
+<Translation>
+このプロンプトは user_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/readonly_agent/prompts/additional_info.j2
+
+```text
+{% if repository_info %}
+<REPOSITORY_INFO>
+At the user's request, repository {{ repository_info.repo_name }} has been cloned to the current working directory {{ repository_info.repo_directory }}.
+</REPOSITORY_INFO>
+{% endif %}
+{% if repository_instructions -%}
+<REPOSITORY_INSTRUCTIONS>
+{{ repository_instructions }}
+</REPOSITORY_INSTRUCTIONS>
+{% endif %}
+{% if runtime_info and (runtime_info.additional_agent_instructions or runtime_info.date) -%}
+<RUNTIME_INFORMATION>
+{% if runtime_info.additional_agent_instructions %}
+{{ runtime_info.additional_agent_instructions }}
+{% endif %}
+{% if runtime_info.date %}
+Today's date is {{ runtime_info.date }} (UTC).
+{% endif %}
+</RUNTIME_INFORMATION>
+{% endif %}
+
+```
+
+<Translation>
+このプロンプトは additional_info.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/readonly_agent/prompts/in_context_learning_example.j2
+
+```text
+Here's a running example of how to perform a task with the provided tools.
+
+--------------------- START OF EXAMPLE ---------------------
+
+USER: I need to find all TypeScript files in the project and then search for files that contain React components.
+
+A: I'll help you find TypeScript files and React components. Let's break this down into steps:
+
+1. First, let's use the glob tool to find all TypeScript files:
+<function=glob>
+<parameter=pattern>**/*.{ts,tsx}</parameter>
+</function>
+
+USER: EXECUTION RESULT of [glob]:
+Below are the execution results of the glob command: rg --files . -g **/*.{ts,tsx} --sortr=modified | head -n 100
+
+src/components/Header.tsx
+src/components/Button.tsx
+src/pages/Home.tsx
+src/utils/types.ts
+src/App.tsx
+src/index.tsx
+
+A: Great! Now let's search for files that likely contain React components by looking for patterns like "export" followed by "function" or "class":
+<function=grep>
+<parameter=pattern>export\s+(default\s+)?(function|class)</parameter>
+<parameter=include>*.{ts,tsx}</parameter>
+</function>
+
+USER: EXECUTION RESULT of [grep]:
+Below are the execution results of the search command: rg -li export\s+(default\s+)?(function|class) --sortr=modified --glob *.{ts,tsx} .
+
+src/components/Header.tsx
+src/components/Button.tsx
+src/pages/Home.tsx
+src/App.tsx
+
+A: Let's examine one of these components to confirm it's a React component. I'll look at the Header component:
+<function=view>
+<parameter=path>src/components/Header.tsx</parameter>
+</function>
+
+USER: EXECUTION RESULT of [view]:
+     1  import React from 'react';
+     2
+     3  interface HeaderProps {
+     4    title: string;
+     5    subtitle?: string;
+     6  }
+     7
+     8  export function Header({ title, subtitle }: HeaderProps) {
+     9    return (
+    10      <header className="app-header">
+    11        <h1>{title}</h1>
+    12        {subtitle && <h2>{subtitle}</h2>}
+    13      </header>
+    14    );
+    15  }
+
+A: Let me also check the Button component to see its implementation:
+<function=view>
+<parameter=path>src/components/Button.tsx</parameter>
+</function>
+
+USER: EXECUTION RESULT of [view]:
+     1  import React from 'react';
+     2
+     3  interface ButtonProps {
+     4    onClick: () => void;
+     5    children: React.ReactNode;
+     6    variant?: 'primary' | 'secondary';
+     7  }
+     8
+     9  export default function Button({ onClick, children, variant = 'primary' }: ButtonProps) {
+    10    return (
+    11      <button
+    12        className={`btn btn-${variant}`}
+    13        onClick={onClick}
+    14      >
+    15        {children}
+    16      </button>
+    17    );
+    18  }
+
+A: I've found several React components in the project. Here's a summary:
+
+1. Found TypeScript files using glob pattern `**/*.{ts,tsx}`
+2. Identified potential React components using grep pattern `export\s+(default\s+)?(function|class)`
+3. Confirmed two components:
+   - `Header.tsx`: A function component that renders a header with title and optional subtitle
+   - `Button.tsx`: A reusable button component with primary/secondary variants
+
+Would you like me to examine any other components or search for specific features within these components?
+<function=finish>
+</function>
+
+--------------------- END OF EXAMPLE ---------------------
+
+Do NOT assume the environment is the same as in the example above.
+
+--------------------- NEW TASK DESCRIPTION ---------------------
+
+```
+
+<Translation>
+このプロンプトは in_context_learning_example.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/readonly_agent/prompts/in_context_learning_example_suffix.j2
+
+```text
+--------------------- END OF NEW TASK DESCRIPTION ---------------------
+
+PLEASE follow the format strictly! PLEASE EMIT ONE AND ONLY ONE FUNCTION CALL PER MESSAGE.
+
+```
+
+<Translation>
+このプロンプトは in_context_learning_example_suffix.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/readonly_agent/prompts/microagent_info.j2
+
+```text
+{% for agent_info in triggered_agents %}
+<EXTRA_INFO>
+The following information has been included based on a keyword match for "{{ agent_info.trigger }}".
+It may or may not be relevant to the user's request.
+
+{{ agent_info.content }}
+</EXTRA_INFO>
+{% endfor %}
+
+```
+
+<Translation>
+このプロンプトは microagent_info.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/readonly_agent/prompts/system_prompt.j2
+
+```text
+You are OpenHands ReadOnlyAgent, a helpful AI assistant focused on code analysis and exploration. You can:
+- Explore and analyze codebases
+- Browse the web for relevant information
+- Plan potential changes
+- Answer questions about code
+
+<CAPABILITIES>
+✓ READ-ONLY TOOLS:
+- view: Read file contents
+- grep: Search for patterns
+- glob: List matching files
+- think: Analyze information
+- web_read: Access web resources
+- finish: Complete current task
+
+✗ RESTRICTIONS:
+- Cannot modify any files
+- Cannot execute state-changing commands
+</CAPABILITIES>
+
+<GUIDELINES>
+1. When analyzing code or answering questions:
+   - Be thorough and methodical
+   - Prioritize accuracy over speed
+   - Provide detailed explanations
+
+2. For file operations:
+   - Always verify file locations before accessing
+   - Don't assume paths are relative to current directory
+
+3. If asked to make changes:
+   - Explain you are read-only
+   - Recommend using CodeActAgent instead
+</GUIDELINES>
+
+```
+
+<Translation>
+このプロンプトは system_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/agenthub/readonly_agent/prompts/user_prompt.j2
+
+```text
+
+```
+
+<Translation>
+このプロンプトは user_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/github/issue_comment_conversation_instructions.j2
+
+```text
+You are requested to fix issue number #{{ issue_number }} in a repository.
+
+A comment on the issue has been addressed to you.
+
+# Steps to Handle the Comment
+
+1. Address the comment. Use the GitHub API to read issue title, body, and comments if you need more context
+2. For all changes to actual application code (e.g. in Python or Javascript), add an appropriate test to the testing directory to make sure that the issue has been fixed
+3. Run the tests, and if they pass you are done!
+4. You do NOT need to write new tests if there are only changes to documentation or configuration files.
+
+When you're done, make sure to
+
+1. Re-read the issue title, body, and comments and make sure that you have successfully implemented all requirements.
+2. Use the `create_pr` tool to open a new PR
+3. Name the branch using `openhands/` as a prefix (e.g `openhands/update-readme`)
+4. The PR description should mention that it "fixes" or "closes" the issue number
+
+```
+
+<Translation>
+このプロンプトは issue_comment_conversation_instructions.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/github/issue_comment_prompt.j2
+
+```text
+{{ issue_comment }}
+
+```
+
+<Translation>
+このプロンプトは issue_comment_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/github/issue_labeled_conversation_instructions.j2
+
+```text
+Your tasking is to fix an issue in your repository. Do the following
+
+1. Read the issue body and comments using the Github API
+2. For all changes to actual application code (e.g. in Python or Javascript), add an appropriate test to the testing directory to make sure that the issue has been fixed
+3. Run the tests, and if they pass you are done!
+4. You do NOT need to write new tests if there are only changes to documentation or configuration files.
+
+When you're done, make sure to
+
+1. Use the `create_pr` tool to open a new PR
+2. The PR description should mention that it "fixes" or "closes" the issue number
+
+```
+
+<Translation>
+このプロンプトは issue_labeled_conversation_instructions.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/github/issue_labeled_prompt.j2
+
+```text
+Please fix issue number #{{ issue_number }} in your repository.
+
+```
+
+<Translation>
+このプロンプトは issue_labeled_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/github/pr_update_conversation_instructions.j2
+
+```text
+You are checked out to branch {{ branch_name }}, which has an open PR #{{ pr_number }}.
+A comment on the PR has been addressed to you. Do NOT respond to this comment via the GitHub API.
+
+{% if file_location %} The comment is in the file `{{ file_location }}` on line #{{ line_number }}{% endif %}.
+
+# Steps to Handle the Comment
+
+## Understand the PR Context
+Use the GitHub API to:
+    1. Retrieve the diff against main to understand the changes
+    2. Fetch the PR body and the linked issue for context
+
+## Process the Comment
+If it's a question:
+    1. Answer the question asked
+    2. DO NOT leave any comments on the PR
+
+If it requests a code update:
+    1. Modify the code accordingly in the current branch
+    2. Push the changes to update the PR
+    3. DO NOT leave any comments on the PR
+
+```
+
+<Translation>
+このプロンプトは pr_update_conversation_instructions.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/github/pr_update_prompt.j2
+
+```text
+{{ pr_comment }}
+
+```
+
+<Translation>
+このプロンプトは pr_update_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/gitlab/issue_comment_conversation_instructions.j2
+
+```text
+You are requested to fix issue number #{{ issue_number }} in a repository.
+
+A comment on the issue has been addressed to you.
+
+# Steps to Handle the Comment
+
+1. Address the comment. Use the GitLab API to read issue title, body, and comments if you need more context
+2. For all changes to actual application code (e.g. in Python or Javascript), add an appropriate test to the testing directory to make sure that the issue has been fixed
+3. Run the tests, and if they pass you are done!
+4. You do NOT need to write new tests if there are only changes to documentation or configuration files.
+
+When you're done, make sure to
+
+1. Re-read the issue title, body, and comments and make sure that you have successfully implemented all requirements.
+2. Use the `create_mr` tool to open a new MR
+3. Name the branch using `openhands/` as a prefix (e.g `openhands/update-readme`)
+4. The MR description should mention that it "fixes" or "closes" the issue number
+
+```
+
+<Translation>
+このプロンプトは issue_comment_conversation_instructions.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/gitlab/issue_comment_prompt.j2
+
+```text
+{{ issue_comment }}
+
+```
+
+<Translation>
+このプロンプトは issue_comment_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/gitlab/issue_labeled_conversation_instructions.j2
+
+```text
+Your tasking is to fix an issue in your repository. Do the following
+
+1. Read the issue body and comments using the GitLab API
+2. For all changes to actual application code (e.g. in Python or Javascript), add an appropriate test to the testing directory to make sure that the issue has been fixed
+3. Run the tests, and if they pass you are done!
+4. You do NOT need to write new tests if there are only changes to documentation or configuration files.
+
+When you're done, make sure to
+
+1. Use the `create_mr` tool to open a new MR
+2. The MR description should mention that it "fixes" or "closes" the issue number
+
+```
+
+<Translation>
+このプロンプトは issue_labeled_conversation_instructions.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/gitlab/issue_labeled_prompt.j2
+
+```text
+Please fix issue number #{{ issue_number }} in your repository.
+
+```
+
+<Translation>
+このプロンプトは issue_labeled_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/gitlab/mr_update_conversation_instructions.j2
+
+```text
+You are checked out to branch {{ branch_name }}, which has an open MR #{{ mr_number }}.
+A comment on the MR has been addressed to you. Do NOT respond to this comment via the GitLab API.
+
+{% if file_location %} The comment is in the file `{{ file_location }}` on line #{{ line_number }}{% endif %}.
+
+# Steps to Handle the Comment
+
+## Understand the MR Context
+Use the GitLab API to:
+    1. Retrieve the diff against main to understand the changes
+    2. Fetch the MR body and the linked issue for context
+
+## Process the Comment
+If it's a question:
+    1. Answer the question asked
+    2. DO NOT leave any comments on the MR
+
+If it requests a code update:
+    1. Modify the code accordingly in the current branch
+    2. Push the changes to update the MR
+    3. DO NOT leave any comments on the MR
+
+```
+
+<Translation>
+このプロンプトは mr_update_conversation_instructions.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/gitlab/mr_update_prompt.j2
+
+```text
+{{ mr_comment }}
+
+```
+
+<Translation>
+このプロンプトは mr_update_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/slack/user_message_conversation_instructions.j2
+
+```text
+When performing your task, make sure to reference the additional context if needed.
+These are a list of text messages attached in order of most recent.
+
+{% for message in messages %}
+{{ message }}
+{% if not loop.last %}\n\n{% endif %}
+{% endfor %}
+
+```
+
+<Translation>
+このプロンプトは user_message_conversation_instructions.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/resolver/summary_prompt.j2
+
+```text
+Please send a final message summarizing your work.
+
+If you simply answered a question, this final message should re-state the answer to the question.
+
+If you made changes, please first double-check the git diff, think carefully about the user's request(s), and check:
+1. whether the request has been completely addressed and all of the instructions have been followed faithfully (in checklist format if appropriate).
+2. whether the changes are concise (if there are any extraneous changes not important to addressing the user's request they should be reverted).
+If the request has been addressed and the changes are concise, then push your changes to the remote branch and send a final message summarizing the changes.
+
+```
+
+<Translation>
+このプロンプトは summary_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/suggested_task/failing_checks_prompt.j2
+
+```text
+You are working on {{ requestType }} #{{ issue_number }} in repository {{ repo }}. You need to fix the failing CI checks.
+Use the {{ apiName }} with the {{ tokenEnvVar }} environment variable to retrieve the {{ requestTypeShort }} details.
+Check out the branch from that {{ requestVerb }} and look at the diff versus the base branch of the {{ requestTypeShort }} to understand the {{ requestTypeShort }}'s intention.
+Then use the {{ apiName }} to look at the {{ ciSystem }} that are failing on the most recent commit. Try and reproduce the failure locally.
+Get things working locally, then push your changes. Sleep for 30 seconds at a time until the {{ ciProvider }} {{ ciSystem.lower() }} have run again.
+If they are still failing, repeat the process.
+
+```
+
+<Translation>
+このプロンプトは failing_checks_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/suggested_task/merge_conflict_prompt.j2
+
+```text
+You are working on {{ requestType }} #{{ issue_number }} in repository {{ repo }}. You need to fix the merge conflicts.
+Use the {{ apiName }} with the {{ tokenEnvVar }} environment variable to retrieve the {{ requestTypeShort }} details.
+Check out the branch from that {{ requestVerb }} and look at the diff versus the base branch of the {{ requestTypeShort }} to understand the {{ requestTypeShort }}'s intention.
+Then resolve the merge conflicts. If you aren't sure what the right solution is, look back through the commit history at the commits that introduced the conflict and resolve them accordingly.
+
+```
+
+<Translation>
+このプロンプトは merge_conflict_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/suggested_task/open_issue_prompt.j2
+
+```text
+You are working on Issue #{{ issue_number }} in repository {{ repo }}. Your goal is to fix the issue.
+Use the {{ apiName }} with the {{ tokenEnvVar }} environment variable to retrieve the issue details and any comments on the issue.
+Then check out a new branch and investigate what changes will need to be made.
+Finally, make the required changes and open up a {{ requestVerb }}. Be sure to reference the issue in the {{ requestTypeShort }} description.
+
+```
+
+<Translation>
+このプロンプトは open_issue_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/integrations/templates/suggested_task/unresolved_comments_prompt.j2
+
+```text
+You are working on {{ requestType }} #{{ issue_number }} in repository {{ repo }}. You need to resolve the remaining comments from reviewers.
+Use the {{ apiName }} with the {{ tokenEnvVar }} environment variable to retrieve the {{ requestTypeShort }} details.
+Check out the branch from that {{ requestVerb }} and look at the diff versus the base branch of the {{ requestTypeShort }} to understand the {{ requestTypeShort }}'s intention.
+Then use the {{ apiName }} to retrieve all the feedback on the {{ requestTypeShort }} so far.
+If anything hasn't been addressed, address it and commit your changes back to the same branch.
+
+```
+
+<Translation>
+このプロンプトは unresolved_comments_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/microagent/prompts/generate_remember_prompt.j2
+
+```text
+You are tasked with generating a prompt that will be used by another AI to update a special reference file. This file contains important information and learnings that are used to carry out certain tasks. The file can be extended over time to incorporate new knowledge and experiences.
+
+You have been provided with a subset of new events that may require updates to the special file. These events are:
+<events>
+{{ events }}
+</events>
+
+Your task is to analyze these events and determine what updates, if any, should be made to the special file. Then, you need to generate a prompt that will instruct another AI to make these updates correctly and efficiently.
+
+When creating your prompt, follow these guidelines:
+1. Clearly specify which parts of the file need to be updated or if new sections should be added.
+2. Provide context for why these updates are necessary based on the new events.
+3. Be specific about the information that should be added or modified.
+4. Maintain the existing structure and formatting of the file.
+5. Ensure that the updates are consistent with the current content and don't contradict existing information.
+
+Now, based on the new events provided, generate a prompt that will guide the AI in making the appropriate updates to the special file. Your prompt should be clear, specific, and actionable. Include your prompt within <update_prompt> tags.
+
+<update_prompt>
+
+</update_prompt>
+
+```
+
+<Translation>
+このプロンプトは generate_remember_prompt.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/guess_success/issue-success-check.jinja
+
+```text
+Given the following issue description and the last message from an AI agent attempting to fix it, determine if the issue has been successfully resolved based on the changes made and their expected impact. Make your own judgment based on the evidence provided - do NOT defer to or wait for human review.
+
+Issue description:
+{{ issue_context }}
+
+Changes made (git patch):
+{{ git_patch }}
+
+Last message from AI agent:
+{{ last_message }}
+
+(1) Based on the changes made and their expected impact, has the issue been successfully resolved?
+(2) Provide a clear explanation of what was done in the PR and whether it addresses the issue. Focus on the concrete changes and their expected effects, not on the need for external verification.
+
+Answer in exactly the format below, with only true or false for success, and an explanation of the result that focuses on the actual changes and their impact.
+
+--- success
+true/false
+
+--- explanation
+...
+
+```
+
+<Translation>
+このプロンプトは issue-success-check.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/guess_success/pr-feedback-check.jinja
+
+```text
+You are given one or more issue descriptions, a piece of feedback to resolve the issues, and the last message from an AI agent attempting to incorporate the feedback. If the feedback is addressed to a specific code file, then the file locations will be provided as well. Based on the changes made and their expected impact, determine if the feedback has been successfully resolved. Make your own judgment based on the evidence provided - do NOT defer to or wait for human review.
+
+Issue descriptions:
+{{ issue_context }}
+
+Feedback:
+{{ feedback }}
+
+Files locations:
+{{ files_context }}
+
+Changes made (git patch):
+{{ git_patch }}
+
+Last message from AI agent:
+{{ last_message }}
+
+(1) Based on the changes made and their expected impact, has the feedback been successfully incorporated?
+(2) Provide a clear explanation of what was done and whether it addresses the feedback. Focus on the concrete changes and their expected effects, not on the need for external verification.
+
+Answer in exactly the format below, with only true or false for success, and an explanation that focuses on the actual changes and their impact.
+
+--- success
+true/false
+
+--- explanation
+...
+
+```
+
+<Translation>
+このプロンプトは pr-feedback-check.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/guess_success/pr-review-check.jinja
+
+```text
+You are given one or more issue descriptions, the PR review comments, and the last message from an AI agent attempting to address the feedback. Based on the changes made and their expected impact, determine if the feedback has been successfully resolved. Make your own judgment based on the evidence provided - do NOT defer to or wait for human review.
+
+Issue descriptions:
+{{ issue_context }}
+
+PR Review Comments:
+{{ review_context }}
+
+Changes made (git patch):
+{{ git_patch }}
+
+Last message from AI agent:
+{{ last_message }}
+
+(1) Based on the changes made and their expected impact, has the feedback been successfully incorporated?
+(2) Provide a clear explanation of what was done and whether it addresses the feedback. Focus on the concrete changes and their expected effects, not on the need for external verification.
+
+Answer in exactly the format below, with only true or false for success, and an explanation that focuses on the actual changes and their impact.
+
+--- success
+true/false
+
+--- explanation
+...
+
+```
+
+<Translation>
+このプロンプトは pr-review-check.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/guess_success/pr-thread-check.jinja
+
+```text
+You are given one or more issue descriptions, the PR thread comments, and the last message from an AI agent attempting to address the feedback. Based on the changes made and their expected impact, determine if the feedback has been successfully resolved. Make your own judgment based on the evidence provided - do NOT defer to or wait for human review.
+
+Issue descriptions:
+{{ issue_context }}
+
+PR Thread Comments:
+{{ thread_context }}
+
+Changes made (git patch):
+{{ git_patch }}
+
+Last message from AI agent:
+{{ last_message }}
+
+(1) Based on the changes made and their expected impact, has the feedback been successfully incorporated?
+(2) Provide a clear explanation of what was done and whether it addresses the feedback. Focus on the concrete changes and their expected effects, not on the need for external verification.
+
+Answer in exactly the format below, with only true or false for success, and an explanation that focuses on the actual changes and their impact.
+
+--- success
+true/false
+
+--- explanation
+...
+
+```
+
+<Translation>
+このプロンプトは pr-thread-check.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/resolve/basic-conversation-instructions.jinja
+
+```text
+IMPORTANT: You should ONLY interact with the environment provided to you AND NEVER ASK FOR HUMAN HELP.
+You SHOULD INCLUDE PROPER INDENTATION in your edit commands.{% if repo_instruction %}
+
+Some basic information about this repository:
+{{ repo_instruction }}{% endif %}
+
+When you think you have fixed the issue through code changes, please finish the interaction.
+
+```
+
+<Translation>
+このプロンプトは basic-conversation-instructions.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/resolve/basic-followup-conversation-instructions.jinja
+
+```text
+The current code is an attempt at fixing one or more issues. The code is not satisfactory and follow up feedback have been provided to address this.
+The feedback may be addressed to specific code files. In this case the file locations will be provided.
+Please update the code based on the feedback for the repository in /workspace.
+An environment has been set up for you to start working. You may assume all necessary tools are installed.
+
+# Issues addressed
+{{ issues }}
+
+
+IMPORTANT: You should ONLY interact with the environment provided to you AND NEVER ASK FOR HUMAN HELP.
+You SHOULD INCLUDE PROPER INDENTATION in your edit commands.{% if repo_instruction %}
+
+Some basic information about this repository:
+{{ repo_instruction }}{% endif %}
+
+When you think you have fixed the issue through code changes, please finish the interaction.
+
+```
+
+<Translation>
+このプロンプトは basic-followup-conversation-instructions.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/resolve/basic-followup.jinja
+
+```text
+Please fix the code based on the following feedback
+
+# Review comments
+{{ review_comments }}
+
+# Review threads
+{{ review_threads }}
+
+# Review thread files
+{{ files }}
+
+# PR Thread Comments
+{{ thread_context }}
+
+```
+
+<Translation>
+このプロンプトは basic-followup.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/resolve/basic-with-tests-conversation-instructions.jinja
+
+```text
+IMPORTANT: You should ONLY interact with the environment provided to you AND NEVER ASK FOR HUMAN HELP.
+You SHOULD INCLUDE PROPER INDENTATION in your edit commands.{% if repo_instruction %}
+
+Some basic information about this repository:
+{{ repo_instruction }}{% endif %}
+
+For all changes to actual application code (e.g. in Python or Javascript), add an appropriate test to the testing directory to make sure that the issue has been fixed.
+Run the tests, and if they pass you are done!
+You do NOT need to write new tests if there are only changes to documentation or configuration files.
+
+When you think you have fixed the issue through code changes, please call the finish action to end the interaction.
+
+```
+
+<Translation>
+このプロンプトは basic-with-tests-conversation-instructions.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/resolve/basic-with-tests.jinja
+
+```text
+Please fix the following issue for the repository in /workspace.
+An environment has been set up for you to start working. You may assume all necessary tools are installed.
+
+# Problem Statement
+{{ body }}
+
+```
+
+<Translation>
+このプロンプトは basic-with-tests.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/resolve/basic.jinja
+
+```text
+Please fix the following issue for the repository in /workspace.
+An environment has been set up for you to start working. You may assume all necessary tools are installed.
+
+# Problem Statement
+{{ body }}
+
+```
+
+<Translation>
+このプロンプトは basic.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/resolver/prompts/resolve/pr-changes-summary.jinja
+
+```text
+Please create a concise overview of the following changes, commenting on whether all issues have been successfully resolved or if there are still issues remaining:
+
+{{ comment_message }}
+
+```
+
+<Translation>
+このプロンプトは pr-changes-summary.jinja の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/runtime/utils/runtime_templates/Dockerfile.j2
+
+```text
+FROM {{ base_image }}
+
+# Shared environment variables
+ENV POETRY_VIRTUALENVS_PATH=/openhands/poetry \
+    MAMBA_ROOT_PREFIX=/openhands/micromamba \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    EDITOR=code \
+    VISUAL=code \
+    GIT_EDITOR="code --wait" \
+    OPENVSCODE_SERVER_ROOT=/openhands/.openvscode-server
+
+{% macro setup_base_system() %}
+
+# Install base system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        wget curl ca-certificates sudo apt-utils git jq tmux build-essential ripgrep \
+        {%- if 'ubuntu' in base_image and (base_image.endswith(':latest') or base_image.endswith(':24.04')) -%}
+        libgl1 \
+        {%- else %}
+        libgl1-mesa-glx \
+        {% endif -%}
+        libasound2-plugins libatomic1 && \
+    {%- if 'ubuntu' in base_image -%}
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    TZ=Etc/UTC DEBIAN_FRONTEND=noninteractive \
+        apt-get install -y --no-install-recommends nodejs python3.12 python-is-python3 python3-pip python3.12-venv && \
+    corepack enable yarn && \
+    {% endif -%}
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+{% if 'ubuntu' in base_image %}
+RUN ln -s "$(dirname $(which node))/corepack" /usr/local/bin/corepack && \
+    npm install -g corepack && corepack enable yarn && \
+    curl -fsSL --compressed https://install.python-poetry.org | python -
+{% endif %}
+
+# Install uv (required by MCP)
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/openhands/bin" sh
+# Add /openhands/bin to PATH
+ENV PATH="/openhands/bin:${PATH}"
+
+# Remove UID 1000 named pn or ubuntu, so the 'openhands' user can be created from ubuntu hosts
+RUN (if getent passwd 1000 | grep -q pn; then userdel pn; fi) && \
+    (if getent passwd 1000 | grep -q ubuntu; then userdel ubuntu; fi)
+
+
+# Create necessary directories
+RUN mkdir -p /openhands && \
+    mkdir -p /openhands/logs && \
+    mkdir -p /openhands/poetry
+
+{% endmacro %}
+
+{% macro setup_vscode_server() %}
+# Reference:
+# 1. https://github.com/gitpod-io/openvscode-server
+# 2. https://github.com/gitpod-io/openvscode-releases
+
+# Setup VSCode Server
+ARG RELEASE_TAG="openvscode-server-v1.98.2"
+ARG RELEASE_ORG="gitpod-io"
+# ARG USERNAME=openvscode-server
+# ARG USER_UID=1000
+# ARG USER_GID=1000
+
+RUN if [ -z "${RELEASE_TAG}" ]; then \
+        echo "The RELEASE_TAG build arg must be set." >&2 && \
+        exit 1; \
+    fi && \
+    arch=$(uname -m) && \
+    if [ "${arch}" = "x86_64" ]; then \
+        arch="x64"; \
+    elif [ "${arch}" = "aarch64" ]; then \
+        arch="arm64"; \
+    elif [ "${arch}" = "armv7l" ]; then \
+        arch="armhf"; \
+    fi && \
+    wget https://github.com/${RELEASE_ORG}/openvscode-server/releases/download/${RELEASE_TAG}/${RELEASE_TAG}-linux-${arch}.tar.gz && \
+    tar -xzf ${RELEASE_TAG}-linux-${arch}.tar.gz && \
+    if [ -d "${OPENVSCODE_SERVER_ROOT}" ]; then rm -rf "${OPENVSCODE_SERVER_ROOT}"; fi && \
+    mv ${RELEASE_TAG}-linux-${arch} ${OPENVSCODE_SERVER_ROOT} && \
+    cp ${OPENVSCODE_SERVER_ROOT}/bin/remote-cli/openvscode-server ${OPENVSCODE_SERVER_ROOT}/bin/remote-cli/code && \
+    rm -f ${RELEASE_TAG}-linux-${arch}.tar.gz
+
+
+
+{% endmacro %}
+
+{% macro install_vscode_extensions() %}
+# Install our custom extension
+RUN mkdir -p ${OPENVSCODE_SERVER_ROOT}/extensions/openhands-hello-world && \
+    cp -r /openhands/code/openhands/runtime/utils/vscode-extensions/hello-world/* ${OPENVSCODE_SERVER_ROOT}/extensions/openhands-hello-world/
+
+RUN mkdir -p ${OPENVSCODE_SERVER_ROOT}/extensions/openhands-memory-monitor && \
+    cp -r /openhands/code/openhands/runtime/utils/vscode-extensions/memory-monitor/* ${OPENVSCODE_SERVER_ROOT}/extensions/openhands-memory-monitor/
+
+# Some extension dirs are removed because they trigger false positives in vulnerability scans.
+RUN rm -rf ${OPENVSCODE_SERVER_ROOT}/extensions/{handlebars,pug,json,diff,grunt,ini,npm}
+{% endmacro %}
+
+{% macro install_dependencies() %}
+# Install all dependencies
+WORKDIR /openhands/code
+
+# Configure micromamba and poetry
+RUN /openhands/micromamba/bin/micromamba config set changeps1 False && \
+    /openhands/micromamba/bin/micromamba run -n openhands poetry config virtualenvs.path /openhands/poetry && \
+    /openhands/micromamba/bin/micromamba run -n openhands poetry env use python3.12
+
+# Install project dependencies in smaller chunks
+RUN /openhands/micromamba/bin/micromamba run -n openhands poetry install --only main --no-interaction --no-root
+
+RUN /openhands/micromamba/bin/micromamba run -n openhands poetry install --only runtime --no-interaction --no-root
+
+# Install playwright and its dependencies
+RUN apt-get update && \
+    /openhands/micromamba/bin/micromamba run -n openhands poetry run pip install playwright && \
+    /openhands/micromamba/bin/micromamba run -n openhands poetry run playwright install --with-deps chromium
+
+# Set environment variables and permissions
+RUN /openhands/micromamba/bin/micromamba run -n openhands poetry run python -c "import sys; print('OH_INTERPRETER_PATH=' + sys.executable)" >> /etc/environment && \
+    chmod -R g+rws /openhands/poetry && \
+    mkdir -p /openhands/workspace && chmod -R g+rws,o+rw /openhands/workspace
+
+# Clear caches
+RUN /openhands/micromamba/bin/micromamba run -n openhands poetry cache clear --all . -n && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    /openhands/micromamba/bin/micromamba clean --all
+
+{% endmacro %}
+
+{% if build_from_scratch %}
+# ================================================================
+# START: Build Runtime Image from Scratch
+# ================================================================
+# This is used in cases where the base image is something more generic like nikolaik/python-nodejs
+# rather than the current OpenHands release
+
+{{ setup_base_system() }}
+
+# Install micromamba
+RUN mkdir -p /openhands/micromamba/bin && \
+    /bin/bash -c "PREFIX_LOCATION=/openhands/micromamba BIN_FOLDER=/openhands/micromamba/bin INIT_YES=no CONDA_FORGE_YES=yes $(curl -L https://micro.mamba.pm/install.sh)" && \
+    /openhands/micromamba/bin/micromamba config remove channels defaults && \
+    /openhands/micromamba/bin/micromamba config list
+
+# Create the openhands virtual environment and install poetry and python
+RUN /openhands/micromamba/bin/micromamba create -n openhands -y && \
+    /openhands/micromamba/bin/micromamba install -n openhands -c conda-forge poetry python=3.12 -y
+
+# Create a clean openhands directory including only the pyproject.toml, poetry.lock and openhands/__init__.py
+RUN \
+    if [ -d /openhands/code ]; then rm -rf /openhands/code; fi && \
+    mkdir -p /openhands/code/openhands && \
+    touch /openhands/code/openhands/__init__.py
+
+COPY ./code/pyproject.toml ./code/poetry.lock /openhands/code/
+
+{{ install_dependencies() }}
+
+# ================================================================
+# END: Build Runtime Image from Scratch
+# ================================================================
+{% endif %}
+
+# ================================================================
+# Copy Project source files
+# ================================================================
+RUN if [ -d /openhands/code/openhands ]; then rm -rf /openhands/code/openhands; fi
+COPY ./code/pyproject.toml ./code/poetry.lock /openhands/code/
+
+COPY ./code/openhands /openhands/code/openhands
+RUN chmod a+rwx /openhands/code/openhands/__init__.py
+
+{{ setup_vscode_server() }}
+
+# ================================================================
+# END: Build from versioned image
+# ================================================================
+{% if build_from_versioned %}
+{{ install_dependencies() }}
+{{ install_vscode_extensions() }}
+{% endif %}
+
+# Install extra dependencies if specified
+{% if extra_deps %}RUN {{ extra_deps }} {% endif %}
+
+```
+
+<Translation>
+このプロンプトは Dockerfile.j2 の内容です。用途はファイルを参照してください。
+</Translation>
+
+## openhands/cli/commands.py - REPO_MD_CREATE_PROMPT
+
+```text
+Please explore this repository. Create the file .openhands/microagents/repo.md with:
+    - A description of the project
+    - An overview of the file structure
+    - Any information on how to run tests or other relevant commands
+    - Any other information that would be helpful to a brand new developer
+Keep it short--just a few paragraphs will do.
+```
+
+<Translation>
+このプロンプトはリポジトリの概要ファイル `.openhands/microagents/repo.md` を生成させるための指示です。リポジトリの説明やテスト実行方法など新規開発者向け情報を簡潔にまとめるよう促します。
+</Translation>
+
+## evaluation/benchmarks/testgeneval/prompt.py - CODEACT_TESTGEN_PROMPT
+```text
+CODEACT_TESTGEN_PROMPT = """
+Your goal is to generate a comprehensive, **broad-coverage** test suite for the code below, ensuring you test as many lines and branches as possible on the first attempt.
+
+Place your test suite in a new file named {test_file}.
+
+IMPORTANT REQUIREMENTS:
+1. **No external help or resources**—use only the snippet below.
+2. **Focus on breadth over depth**: cover all major functions, classes, and code paths early to minimize coverage iterations.
+3. Each test function must start with `test_` and use `assert` to verify behavior.
+4. Include only necessary imports (standard library or local).
+5. Do **not** modify existing test files—create a brand new one. No `main()` or other non-test code.
+6. Produce **at least 20 test functions**; if coverage is lacking, add more tests rather than removing or changing existing ones.
+7. Use the following commands to check coverage:
+   <execute_bash> {coverage_command} </execute_bash>
+   <execute_bash> coverage report -m --include {code_file} </execute_bash>
+   If lines remain uncovered, add new tests targeting them specifically.
+8. When you're satisfied with coverage, finalize by running:
+   <execute_bash> exit </execute_bash>
+
+Below is the **complete code snippet** to test:
+
+<START_OF_CODE>
+{code_src}
+<END_OF_CODE>
+
+NOTE: if you are testing django, you must use from django.test import SimpleTestCase and class based tests (i.e. class TestSomething(SimpleTestCase)).
+NOTE: if there is an error executing tests you MUST fix it before exiting. DO NOT install new packages.
+NOTE: if outputting a revised test suite REPLACE {test_file} with the revised suite
+
+**Output the final test suite** (20+ tests) for {test_file} in a single code block, no extra commentary. MAKE SURE you run the tests and ensure you can see which tests passed and failed BEFORE exiting.
+"""
+
+
+<Translation>
+コードファイルに対して 20 件以上のテストケースを生成することを求めるプロンプトです。テスト作成からカバレッジ確認、最終的な終了手順までが詳細に指示されています。
+</Translation>
+
+## evaluation/benchmarks/testgeneval/prompt.py - CODEACT_TESTGEN_PROMPT_ITERATE
+```text
+CODEACT_TESTGEN_PROMPT_ITERATE = """
+Your goal is to improve the test suite at {test_file} to achieve **broad-coverage** of the code below.
+
+First run the test suite.
+
+If no tests run, then remove {test_file} and create {test_file} with a new suite.
+
+Otherwise, improve it aiming to improve code coverage.
+
+IMPORTANT REQUIREMENTS:
+1. Use the following commands to check coverage (RUN THIS FIRST):
+   <execute_bash> {coverage_command} </execute_bash>
+   <execute_bash> coverage report -m --include {code_file} </execute_bash>
+   If lines remain uncovered, add new tests targeting them specifically.
+2. **No external help or resources**—use only the snippet below.
+3. **Focus on breadth over depth**: cover all major functions, classes, and code paths early to minimize coverage iterations.
+4. Each test function must use `assert` to verify behavior.
+5. Include only necessary imports (standard library or local).
+6. Do **not** modify other test files in the repository. No `main()` or other non-test code.
+7. Produce **at least 20 test functions**; if coverage is lacking, add more tests rather than removing or changing existing ones.
+8. When you're satisfied with coverage, finalize by running:
+   <execute_bash> exit </execute_bash>
+
+Below is the **complete code snippet** to test:
+
+<START_OF_CODE>
+{code_src}
+<END_OF_CODE>
+
+NOTE: if you are testing django, you must use from django.test import SimpleTestCase and class based tests (i.e. class TestSomething(SimpleTestCase)).
+NOTE: if there is an error executing tests you MUST fix it before exiting. DO NOT install new packages.
+NOTE: if outputting a revised test suite REPLACE {test_file} with the revised suite
+
+**Output the final test suite** (20+ tests) for {test_file} in a single code block, no extra commentary. MAKE SURE you run the tests and ensure you can see which tests passed and failed BEFORE exiting.
+"""
+
+<Translation>
+既存のテストファイルを改良しカバレッジを向上させるための指示です。最初にカバレッジ計測を行い、不足している場合はテストを追加します。
+</Translation>
